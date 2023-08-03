@@ -1,26 +1,30 @@
-var fs = require('fs');
+'use strict';
+const Fs = require('fs');
+const Https = require('https');
+const WebSocketServer = require('ws').Server;
 
-// read ssl certificate
-var privateKey = fs.readFileSync('ssl-cert/privkey.pem', 'utf8');
-var certificate = fs.readFileSync('ssl-cert/fullchain.pem', 'utf8');
-
-var credentials = { key: privateKey, cert: certificate };
-var https = require('https');
-
-//pass in your credentials to create an https server
-var httpsServer = https.createServer(credentials);
-httpsServer.listen(8443);
-
-var WebSocketServer = require('ws').Server;
-var wss = new WebSocketServer({
-    server: httpsServer
+const httpsServer = Https.createServer({
+  key: Fs.readFileSync('ssl-cert/privkey.pem', 'utf8'),
+  cert: Fs.readFileSync('ssl-cert/fullchain.pem', 'utf8')
+});
+const wss = new WebSocketServer({
+  server: httpsServer
 });
 
-wss.on('connection', function connection(ws) {
-    ws.on('message', function incoming(message) {
-        console.log('received: %s', message);
-        ws.send('reply from server : ' + message)
-    });
-
-    ws.send('something');
+httpsServer.on('request', (req, res) => {
+  res.writeHead(200);
+  res.end('hello HTTPS world\n');
 });
+
+wss.on('connection', (ws) => {
+  ws.send('hello');
+
+  ws.on('message', (data) => {
+    ws.send('message received: ', data);
+  });
+  ws.on('close', () => {
+    console.log('socket closed');
+  });
+});
+
+httpsServer.listen(443);
